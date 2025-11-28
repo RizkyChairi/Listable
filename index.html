@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listable - ToDoList</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-gray-200 to-gray-400 min-h-screen p-4">
+    <div class="max-w-md mx-auto bg-white rounded-2xl shadow-2xl p-6 mt-10 border-4 border-amber-900">
+        <h1 class="text-3xl font-bold text-center text-amber-900 mb-6">Listable</h1>
+        
+        <div class="mb-6">
+            <div class="flex">
+                <input type="text" id="Input" placeholder="Tambah Tugas" class="flex-grow px-4 py-2 border-2 border-gray-400 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-amber-700" autocomplete="off">
+                <button type="button" id="button" class="bg-amber-800 text-white px-6 py-2 rounded-r-lg hover:bg-amber-900 transition duration-300 font-semibold">
+                    Tambah
+                </button>
+            </div>
+        </div>
+
+        <div class="flex justify-between mb-4">
+            <button id="list" class="filter-btn bg-amber-800 text-white px-3 py-1 rounded-lg">Todolist</button>
+            <button id="active" class="filter-btn bg-gray-400 text-white px-3 py-1 rounded-lg">Pending</button>
+            <button id="completed" class="filter-btn bg-gray-400 text-white px-3 py-1 rounded-lg">Completed</button>
+        </div>
+
+        <ul id="todolist" class="space-y-2"></ul>
+        
+        <div class="mt-4 text-sm text-gray-700 font-medium">
+            <span id="todoCount">0</span> tugas tersisa
+        </div>
+
+        <div class="mt-4">
+            <button id="clearcompleted" class="w-full bg-amber-800 text-white py-2 rounded-lg hover:bg-amber-900 transition duration-200 font-semibold">
+                Delete Completed Tasks
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let todos = JSON.parse(localStorage.getItem('todos')) || [];
+        let filter = 'all';
+
+        const input = document.getElementById('Input');
+        const btn = document.getElementById('button');
+        const list = document.getElementById('todolist');
+        const count = document.getElementById('todoCount');
+        const clear = document.getElementById('clearcompleted');
+
+        function save() {
+            localStorage.setItem('todos', JSON.stringify(todos));
+        }
+
+        function render() {
+            const filtered = filter === 'all' ? todos : 
+                           filter === 'pending' ? todos.filter(t => !t.done) : 
+                           todos.filter(t => t.done);
+            
+            list.innerHTML = filtered.map(t => `
+                <li class="flex items-center justify-between bg-gray-50 p-3 rounded border">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" ${t.done ? 'checked' : ''} 
+                               onchange="toggle(${t.id})" class="w-4 h-4">
+                        <span class="${t.done ? 'line-through text-gray-500' : ''}">${t.text}</span>
+                    </div>
+                    <button onclick="del(${t.id})" 
+                            class="bg-amber-700 text-white px-3 py-1 rounded text-sm hover:bg-amber-800">
+                        Hapus
+                    </button>
+                </li>
+            `).join('');
+            
+            count.textContent = todos.filter(t => !t.done).length;
+        }
+
+        function add() {
+            const text = input.value.trim();
+            if (!text) return;
+            todos.push({ id: Date.now(), text, done: false });
+            input.value = '';
+            save();
+            render();
+        }
+
+        function toggle(id) {
+            todos = todos.map(t => t.id === id ? {...t, done: !t.done} : t);
+            save();
+            render();
+        }
+
+        function del(id) {
+            todos = todos.filter(t => t.id !== id);
+            save();
+            render();
+        }
+
+        btn.onclick = add;
+        input.onkeypress = e => { if(e.key === 'Enter') add(); };
+        
+        document.getElementById('list').onclick = () => {
+            filter = 'all';
+            document.querySelectorAll('.filter-btn').forEach(b => 
+                b.className = 'filter-btn bg-gray-400 text-white px-3 py-1 rounded-lg');
+            document.getElementById('list').className = 'filter-btn bg-amber-800 text-white px-3 py-1 rounded-lg';
+            render();
+        };
+
+        document.getElementById('active').onclick = () => {
+            filter = 'pending';
+            document.querySelectorAll('.filter-btn').forEach(b => 
+                b.className = 'filter-btn bg-gray-400 text-white px-3 py-1 rounded-lg');
+            document.getElementById('active').className = 'filter-btn bg-amber-800 text-white px-3 py-1 rounded-lg';
+            render();
+        };
+
+        document.getElementById('completed').onclick = () => {
+            filter = 'completed';
+            document.querySelectorAll('.filter-btn').forEach(b => 
+                b.className = 'filter-btn bg-gray-400 text-white px-3 py-1 rounded-lg');
+            document.getElementById('completed').className = 'filter-btn bg-amber-800 text-white px-3 py-1 rounded-lg';
+            render();
+        };
+
+        clear.onclick = () => {
+            todos = todos.filter(t => !t.done);
+            save();
+            render();
+        };
+
+        render();
+    </script>
+</body>
+</html>

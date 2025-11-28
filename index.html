@@ -14,26 +14,30 @@
             <div class="flex">
                 <input type="text" id="Input" placeholder="Tambah Tugas" class="flex-grow px-4 py-2 border-2 border-gray-400 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-amber-700" autocomplete="off">
                 <button type="button" id="button" class="bg-amber-800 text-white px-6 py-2 rounded-r-lg hover:bg-amber-900 transition duration-300 font-semibold">
-                    Add
+                    Tambah
                 </button>
             </div>
         </div>
 
-        <div class="flex justify-between mb-4">
-            <button id="list" class="filter-btn bg-amber-800 text-white px-3 py-1 rounded-lg">All List</button>
-            <button id="active" class="filter-btn bg-gray-400 text-white px-3 py-1 rounded-lg">Pending</button>
-            <button id="completed" class="filter-btn bg-gray-400 text-white px-3 py-1 rounded-lg">Completed</button>
+        <!-- Filter buttons dengan margin yang lebih rapat -->
+        <div class="flex justify-between mb-4 gap-2">
+            <button id="all" class="filter-btn bg-amber-800 text-white px-3 py-1 rounded-lg flex-1">All</button>
+            <button id="pending" class="filter-btn bg-gray-400 text-white px-3 py-1 rounded-lg flex-1">Pending</button>
+            <button id="completed" class="filter-btn bg-gray-400 text-white px-3 py-1 rounded-lg flex-1">Completed</button>
         </div>
 
         <ul id="todolist" class="space-y-2"></ul>
         
         <div class="mt-4 text-sm text-gray-700 font-medium">
-            <span id="todoCount">0</span> remaining tasks
+            <span id="todoCount">0</span> tugas tersisa
         </div>
 
-        <div class="mt-4">
-            <button id="clearcompleted" class="w-full bg-amber-800 text-white py-2 rounded-lg hover:bg-amber-900 transition duration-200 font-semibold">
-                Delete Completed Tasks
+        <div class="mt-4 flex gap-2">
+            <button id="deletePending" class="flex-1 bg-gray-400 text-white py-2 rounded-lg hover:bg-amber-800 transition duration-200 font-semibold">
+                Delete Pending
+            </button>
+            <button id="deleteCompleted" class="flex-1 bg-gray-400 text-white py-2 rounded-lg hover:bg-amber-800 transition duration-200 font-semibold">
+                Delete Completed
             </button>
         </div>
     </div>
@@ -41,12 +45,14 @@
     <script>
         let todos = JSON.parse(localStorage.getItem('todos')) || [];
         let filter = 'all';
+        let editingId = null;
 
         const input = document.getElementById('Input');
         const btn = document.getElementById('button');
         const list = document.getElementById('todolist');
         const count = document.getElementById('todoCount');
-        const clear = document.getElementById('clearcompleted');
+        const deletePendingBtn = document.getElementById('deletePending');
+        const deleteCompletedBtn = document.getElementById('deleteCompleted');
 
         function save() {
             localStorage.setItem('todos', JSON.stringify(todos));
@@ -59,19 +65,47 @@
             
             list.innerHTML = filtered.map(t => `
                 <li class="flex items-center justify-between bg-gray-50 p-3 rounded border">
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 flex-grow">
                         <input type="checkbox" ${t.done ? 'checked' : ''} 
                                onchange="toggle(${t.id})" class="w-4 h-4">
-                        <span class="${t.done ? 'line-through text-gray-500' : ''}">${t.text}</span>
+                        ${editingId === t.id ? 
+                            `<input type="text" value="${t.text}" class="flex-grow px-2 border rounded focus:outline-none focus:ring-1 focus:ring-amber-700" onkeypress="handleEditKeypress(event, ${t.id})">` :
+                            `<span class="${t.done ? 'line-through text-gray-500' : ''} flex-grow">${t.text}</span>`
+                        }
                     </div>
-                    <button onclick="del(${t.id})" 
-                            class="bg-amber-700 text-white px-3 py-1 rounded text-sm hover:bg-amber-800">
-                        Hapus
-                    </button>
+                    <div class="flex gap-2">
+                        ${editingId === t.id ? 
+                            `<button onclick="saveEdit(${t.id})" class="bg-amber-700 text-white px-3 py-1 rounded text-sm hover:bg-amber-800">Simpan</button>` :
+                            `<button onclick="edit(${t.id})" class="bg-amber-700 text-white px-3 py-1 rounded text-sm hover:bg-amber-800">Edit</button>
+                             <button onclick="del(${t.id})" class="bg-amber-700 text-white px-3 py-1 rounded text-sm hover:bg-amber-800">Hapus</button>`
+                        }
+                    </div>
                 </li>
             `).join('');
             
             count.textContent = todos.filter(t => !t.done).length;
+            
+            // Update tombol delete berdasarkan status
+            updateDeleteButtons();
+            
+            if (editingId) {
+                const editInput = document.querySelector('input[type="text"]');
+                if (editInput) {
+                    editInput.focus();
+                    editInput.select();
+                }
+            }
+        }
+
+        function updateDeleteButtons() {
+            const hasPending = todos.some(t => !t.done);
+            const hasCompleted = todos.some(t => t.done);
+            
+            deletePendingBtn.className = `flex-1 ${hasPending ? 'bg-amber-800' : 'bg-gray-400'} text-white py-2 rounded-lg hover:bg-amber-900 transition duration-200 font-semibold`;
+            deleteCompletedBtn.className = `flex-1 ${hasCompleted ? 'bg-amber-800' : 'bg-gray-400'} text-white py-2 rounded-lg hover:bg-amber-900 transition duration-200 font-semibold`;
+            
+            deletePendingBtn.disabled = !hasPending;
+            deleteCompletedBtn.disabled = !hasCompleted;
         }
 
         function add() {
@@ -95,34 +129,72 @@
             render();
         }
 
+        function edit(id) {
+            editingId = id;
+            render();
+        }
+
+        function saveEdit(id) {
+            const editInput = document.querySelector('input[type="text"]');
+            const newText = editInput.value.trim();
+            if (newText) {
+                todos = todos.map(t => t.id === id ? {...t, text: newText} : t);
+                save();
+            }
+            editingId = null;
+            render();
+        }
+
+        function handleEditKeypress(e, id) {
+            if (e.key === 'Enter') {
+                saveEdit(id);
+            } else if (e.key === 'Escape') {
+                editingId = null;
+                render();
+            }
+        }
+
+        function updateFilterButtons() {
+            document.querySelectorAll('.filter-btn').forEach(b => 
+                b.className = 'filter-btn bg-gray-400 text-white px-3 py-1 rounded-lg flex-1');
+            
+            if (filter === 'all') {
+                document.getElementById('all').className = 'filter-btn bg-amber-800 text-white px-3 py-1 rounded-lg flex-1';
+            } else if (filter === 'pending') {
+                document.getElementById('pending').className = 'filter-btn bg-amber-800 text-white px-3 py-1 rounded-lg flex-1';
+            } else {
+                document.getElementById('completed').className = 'filter-btn bg-amber-800 text-white px-3 py-1 rounded-lg flex-1';
+            }
+        }
+
         btn.onclick = add;
         input.onkeypress = e => { if(e.key === 'Enter') add(); };
         
-        document.getElementById('list').onclick = () => {
+        document.getElementById('all').onclick = () => {
             filter = 'all';
-            document.querySelectorAll('.filter-btn').forEach(b => 
-                b.className = 'filter-btn bg-gray-400 text-white px-3 py-1 rounded-lg');
-            document.getElementById('list').className = 'filter-btn bg-amber-800 text-white px-3 py-1 rounded-lg';
+            updateFilterButtons();
             render();
         };
 
-        document.getElementById('active').onclick = () => {
+        document.getElementById('pending').onclick = () => {
             filter = 'pending';
-            document.querySelectorAll('.filter-btn').forEach(b => 
-                b.className = 'filter-btn bg-gray-400 text-white px-3 py-1 rounded-lg');
-            document.getElementById('active').className = 'filter-btn bg-amber-800 text-white px-3 py-1 rounded-lg';
+            updateFilterButtons();
             render();
         };
 
         document.getElementById('completed').onclick = () => {
             filter = 'completed';
-            document.querySelectorAll('.filter-btn').forEach(b => 
-                b.className = 'filter-btn bg-gray-400 text-white px-3 py-1 rounded-lg');
-            document.getElementById('completed').className = 'filter-btn bg-amber-800 text-white px-3 py-1 rounded-lg';
+            updateFilterButtons();
             render();
         };
 
-        clear.onclick = () => {
+        deletePendingBtn.onclick = () => {
+            todos = todos.filter(t => t.done);
+            save();
+            render();
+        };
+
+        deleteCompletedBtn.onclick = () => {
             todos = todos.filter(t => !t.done);
             save();
             render();
